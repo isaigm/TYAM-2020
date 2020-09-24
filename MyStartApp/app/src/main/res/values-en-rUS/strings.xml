@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MyStartApp</string>
+    <string name="valor1">VALUE 1</string>
+    <string name="valor2">VALUE 2</string>
+    <string name="press_me">Press Me!</string>
+</resources>
