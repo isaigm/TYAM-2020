@@ -1,6 +1,14 @@
 <resources>
     <string name="app_name">MyStartApp</string>
-    <string name="valor1">VALOR 1</string>
-    <string name="valor2">VALOR 2</string>
-    <string name="press_me">Presiona!</string>
+    <string name="valor1">NOMBRE</string>
+    <string name="valor2">APELLIDOS</string>
+    <string name="press_me">Save me!</string>
+
+    <array name="daysOfWeek">
+        <item>Lunes</item>
+        <item>Martes</item>
+        <item>Miércoles</item>
+        <item>Jueves</item>
+        <item>Viernes</item>
+    </array>
 </resources>
