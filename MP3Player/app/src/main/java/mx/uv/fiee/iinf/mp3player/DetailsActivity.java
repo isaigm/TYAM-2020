@@ -1,6 +1,7 @@
 package mx.uv.fiee.iinf.mp3player;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
@@ -157,6 +158,24 @@ public class DetailsActivity extends Activity {
         }
 
         player = null;
+    }
+
+
+    @Override
+    protected void onResume() {
+        super.onResume ();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart ();
+
+        Intent intent = getIntent ();
+        if (intent != null) {
+            String audio = intent.getStringExtra ("AUDIO");
+            Toast.makeText (getBaseContext(), audio, Toast.LENGTH_LONG).show ();
+        }
+
     }
 
     class MySeekBarChangeListener implements SeekBar.OnSeekBarChangeListener {
