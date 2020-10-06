@@ -1,184 +1,58 @@
 package mx.uv.fiee.iinf.mp3player;
 
+import android.Manifest;
 import android.app.Activity;
-import android.media.MediaPlayer;
+import android.app.ListActivity;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.text.style.UpdateLayout;
-import android.util.Log;
-import android.widget.Button;
-import android.widget.SeekBar;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import java.io.IOException;
-
 public class MainActivity extends Activity {
-    MediaPlayer player;
-    Thread posThread;
-    Uri mediaUri;
-    int pos;
+    public static final int REQUEST_CODE = 1001;
 
     @Override
-    protected void onCreate (@Nullable Bundle savedInstanceState) {
-        super.onCreate (savedInstanceState);
-        setContentView (R.layout.activity_main);
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
 
-        SeekBar sbProgress = findViewById (R.id.sbProgress);
-        sbProgress.setOnSeekBarChangeListener (new MySeekBarChangeListener ());
+        findViewById(R.id.btnItem).setOnClickListener (v -> {
+            //Intent intent = new Intent (getBaseContext (), DetailsActivity.class);
+            //startActivity (intent);
 
-        Log.d ("PKAT", "Setting up mediaplayer");
-        player = new MediaPlayer ();
-        player.setOnPreparedListener (mediaPlayer -> {
-            posThread = new Thread (() -> {
-                try {
-                    while (player.isPlaying ()) {
-                        Thread.sleep (1000);
-                        sbProgress.setProgress (player.getCurrentPosition ());
-                    }
-                } catch (InterruptedException in) { in.printStackTrace (); }
-            });
+            // verifica si se cuenta con el permiso para realizar llamadas
+            int perm = getBaseContext ().checkSelfPermission (Manifest.permission.CALL_PHONE);
+            if (perm != PackageManager.PERMISSION_GRANTED) { // sino se tiene el permiso
+                requestPermissions ( // se solicita explicitamente
+                        new String [] { Manifest.permission.CALL_PHONE, Manifest.permission.READ_EXTERNAL_STORAGE },
+                        REQUEST_CODE
+                );
 
-            sbProgress.setMax (mediaPlayer.getDuration ());
-            if (pos > -1) mediaPlayer.seekTo (pos);
-            mediaPlayer.start ();
-            posThread.start ();
-        });
-
-        Button btnAudio1 = findViewById (R.id.btnAudio1);
-        btnAudio1.setOnClickListener (v -> {
-
-            if (player.isPlaying ()) {
-                posThread.interrupt ();
-                player.stop ();
-                player.seekTo (0);
-                sbProgress.setProgress (0);
-                pos = -1;
+                return;
             }
 
-            mediaUri = Uri.parse ("android.resource://" + getBaseContext ().getPackageName () + "/" + R.raw.mr_blue_sky);
-
-            try {
-                player.setDataSource(getBaseContext (), mediaUri);
-                player.prepare ();
-                Toast.makeText (getApplicationContext (), "Now playing: Mr. Blue Sky", Toast.LENGTH_LONG).show ();
-            } catch (IOException ex) { ex.printStackTrace (); }
-
+            String uri = "tel: 229 2343435";
+            Intent intent = new Intent (Intent.ACTION_CALL);
+            intent.setData (Uri.parse (uri));
+            startActivity (intent);
         });
-
-        Button btnAudio2 = findViewById (R.id.btnAudio2);
-        btnAudio2.setOnClickListener (v -> {
-
-            if (player.isPlaying ()) {
-                posThread.interrupt ();
-                player.stop ();
-                player.seekTo (0);
-                sbProgress.setProgress (0);
-                pos = -1;
-            }
-
-            mediaUri = Uri.parse ("android.resource://" + getBaseContext ().getPackageName () + "/" + R.raw.lake_shore_drive);
-
-            try {
-                player.setDataSource (getBaseContext (), mediaUri);
-                player.prepare ();
-                Toast.makeText (getApplicationContext (), "Now playing: Lake Shoe Drive", Toast.LENGTH_LONG).show ();
-            } catch (IOException ex) { ex.printStackTrace (); }
-
-        });
-
-        Button btnAudio3 = findViewById (R.id.btnAudio3);
-        btnAudio3.setOnClickListener (v -> {
-
-            if (player.isPlaying ()) {
-                posThread.interrupt ();
-                player.stop ();
-                player.seekTo (0);
-                sbProgress.setProgress (0);
-                pos = -1;
-            }
-
-            mediaUri = Uri.parse ("android.resource://" + getBaseContext ().getPackageName () + "/" + R.raw.fox_on_the_run);
-
-            try {
-                player.setDataSource (getBaseContext(), mediaUri);
-                player.prepare ();
-                Toast.makeText (getApplicationContext (), "Now playing: Fox On The Run", Toast.LENGTH_LONG).show ();
-            } catch (IOException ex) { ex.printStackTrace (); }
-
-        });
-
     }
 
     @Override
-    protected void onSaveInstanceState (@NonNull Bundle outState) {
-        super.onSaveInstanceState (outState);
+    public void onRequestPermissionsResult (int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult (requestCode, permissions, grantResults);
 
-        outState.putString ("SONG", mediaUri != null ? mediaUri.toString (): "");
-        outState.putInt ("PROGRESS", player != null ?  player.getCurrentPosition () : -1);
-        outState.putBoolean ("ISPLAYING", player != null && player.isPlaying ());
+        switch (REQUEST_CODE) {
+            case 1001:
+                if (grantResults.length > 0 && grantResults [0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText (getBaseContext(),"Permission Granted!", Toast.LENGTH_LONG).show ();
+                }
 
-        if (player.isPlaying ()) {
-            posThread.interrupt ();
-
-            player.stop ();
-            player.seekTo (0);
-            player.release ();
-            player = null;
+                break;
         }
-    }
-
-    @Override
-    protected void onRestoreInstanceState (@NonNull Bundle savedInstanceState) {
-        super.onRestoreInstanceState (savedInstanceState);
-
-        //mediaUri = Uri.parse ("android.resource://" + getBaseContext ().getPackageName () + "/" + R.raw.fox_on_the_run);
-        mediaUri = Uri.parse (savedInstanceState.getString ("SONG"));
-        pos = savedInstanceState.getInt ("PROGRESS");
-        boolean isPlaying = savedInstanceState.getBoolean ("ISPLAYING");
-
-        if (player == null) return;
-
-        try {
-            player.reset ();
-            player.setDataSource (getBaseContext (), mediaUri);
-            if (isPlaying) player.prepareAsync ();
-        } catch (IOException | IllegalStateException ioex) {
-            ioex.printStackTrace ();
-        }
-    }
-
-    @Override
-    protected void onDestroy () {
-        super.onDestroy();
-        // cleanup
-
-        if (player != null && player.isPlaying ()) {
-            player.stop ();
-            player.release ();
-        }
-
-        player = null;
-    }
-
-    class MySeekBarChangeListener implements SeekBar.OnSeekBarChangeListener {
-
-        @Override
-        public void onProgressChanged (SeekBar seekBar, int i, boolean b) {
-            if (b) {
-                player.pause ();
-                player.seekTo (i);
-                player.start ();
-            }
-        }
-
-        @Override
-        public void onStartTrackingTouch (SeekBar seekBar) {}
-
-        @Override
-        public void onStopTrackingTouch (SeekBar seekBar) {}
-
     }
 }
