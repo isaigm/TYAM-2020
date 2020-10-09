@@ -3,6 +3,7 @@ package mx.uv.fiee.iinf.mp3player;
 import android.Manifest;
 import android.app.Activity;
 import android.app.ListActivity;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -22,55 +23,73 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.LinkedList;
+import java.util.List;
 
 public class MainActivity extends Activity {
     public static final int REQUEST_CODE = 1001;
+    public static final int REQUEST_CODE_EXTERNAL_STORAGE = 1002;
     public static final int ACTIVITY_REQUEST_CODE = 2001;
+
+    RecyclerView lv;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // origen de datos
-        String [] days = { "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", };
-
-        // controlador
-        ArrayAdapter<String> adapter = new ArrayAdapter<> (getBaseContext(), android.R.layout.simple_list_item_2, days);
-
-        // recupera los archivos de audio
-        LinkedList<String> l = loadAudios ();
-
-        // vista
-        RecyclerView lv = findViewById (R.id.list1);
+        lv = findViewById (R.id.list1);
         lv.setLayoutManager (new LinearLayoutManager (getBaseContext(), RecyclerView.VERTICAL, false));
-        lv.setAdapter (new MyAdapter (getBaseContext(), days));
+        lv.addItemDecoration (new DividerItemDecoration (getBaseContext (), DividerItemDecoration.VERTICAL));
+
+        // solicita el permiso necesario para leer del almacenamiento externo
+        int perm = getBaseContext ().checkSelfPermission (Manifest.permission.READ_EXTERNAL_STORAGE);
+        if (perm != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions (
+                    new String [] { Manifest.permission.READ_EXTERNAL_STORAGE },
+                    REQUEST_CODE_EXTERNAL_STORAGE
+            );
+        } else {
+            loadAudios ();
+        }
+
     }
 
-    LinkedList<String> loadAudios () {
-        String [] columns = { MediaStore.Audio.Artists.ARTIST, MediaStore.Audio.Media.ALBUM};
+    void loadAudios () {
+        String [] columns = { MediaStore.Audio.Artists._ID, MediaStore.Audio.Artists.ARTIST };
         String order = MediaStore.Audio.Media.DEFAULT_SORT_ORDER;
 
         // SELECT MediaStore.Audio.Artists.ARTIST, MediaStore.Audio.Media.ALBUM
         // FROM MediaStore.Audio.Media.EXTERNAL_CONTENT_URI ORDER BY MediaStore.Audio.Media.DEFAULT_SORT_ORDER;
-        Cursor cursor =  getBaseContext().getContentResolver().query (MediaStore.Audio.Media.INTERNAL_CONTENT_URI, columns, null, null, order);
-        if (cursor == null) return null;
+        Cursor cursor =  getBaseContext().getContentResolver().query (MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, columns, null, null, order);
+        if (cursor == null) return;
 
-        LinkedList<String> artists = new LinkedList<> ();
+        LinkedList<AudioModel> artists = new LinkedList<> ();
 
         for (int i = 0; i < cursor.getCount (); i++) {
-            int index = cursor.getColumnIndex (MediaStore.Audio.Media.ARTIST);
-            String artist = cursor.getString (index);
+            cursor.moveToPosition (i);
+            AudioModel audioModel = new AudioModel ();
 
-            artists.add (artist);
+            int index = cursor.getColumnIndexOrThrow (MediaStore.Audio.Media._ID);
+            long id = cursor.getLong (index);
+            audioModel.id = id;
+
+            index = cursor.getColumnIndexOrThrow (MediaStore.Audio.Media.ARTIST);
+            String artist = cursor.getString (index);
+            audioModel.name = artist;
+
+            artists.add (audioModel);
         }
 
         cursor.close ();
-        return artists;
+
+        MyAdapter adapter = new MyAdapter (getBaseContext (), artists);
+        adapter.setOnAudioSelectedListener (audioUri -> Toast.makeText (getBaseContext (), audioUri.toString (), Toast.LENGTH_LONG).show () );
+        lv.setAdapter (adapter);
     }
 
     /**
@@ -84,13 +103,16 @@ public class MainActivity extends Activity {
     public void onRequestPermissionsResult (int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult (requestCode, permissions, grantResults);
 
-        switch (REQUEST_CODE) {
-            case 1001:
+        switch (requestCode) {
+            case REQUEST_CODE:
                 if (grantResults.length > 0 && grantResults [0] == PackageManager.PERMISSION_GRANTED) {
                     Toast.makeText (getBaseContext(),"Permission Granted!", Toast.LENGTH_LONG).show ();
                 }
-
                 break;
+            case REQUEST_CODE_EXTERNAL_STORAGE:
+                if (grantResults.length > 0 && grantResults [0] == PackageManager.PERMISSION_GRANTED) {
+                    loadAudios ();
+                }
         }
     }
 
@@ -107,13 +129,25 @@ public class MainActivity extends Activity {
     }
 }
 
+/**
+ * Adaptador personalizado para controlar el llenado de datos del recyclerview
+ */
 class MyAdapter extends RecyclerView.Adapter<MyAdapter.MyViewHolder> {
-    Context context;
-    String [] data;
+    private Context context;
+    private List<AudioModel> data;
+    private OnAudioSelectedListener listener;
 
-    public MyAdapter (Context context, String [] data) {
+    public MyAdapter (Context context, List<AudioModel> data) {
         this.data = data;
         this.context = context;
+    }
+
+    /**
+     * Manajador para el evento de selección de elemento en la lista
+     * @param listener objeto que implementa la interfaz OnAudioSelectedListener
+     */
+    public void setOnAudioSelectedListener (OnAudioSelectedListener listener) {
+        this.listener = listener;
     }
 
     @NonNull
@@ -125,16 +159,28 @@ class MyAdapter extends RecyclerView.Adapter<MyAdapter.MyViewHolder> {
 
     @Override
     public void onBindViewHolder (@NonNull MyViewHolder holder, int position) {
-        String foo = data [position];
+        String foo = data.get (position).name;
         holder.text1.setText (foo);
+
+        holder.itemView.setOnClickListener (v -> {
+            Uri contentUri = ContentUris.withAppendedId (
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    data.get (position).id
+            );
+
+            listener.audioSelected (contentUri);
+        });
     }
 
     @Override
     public int getItemCount () {
-        return data.length;
+        return data.size ();
     }
 
 
+    /**
+     * Mantiene referencia al componente que interesa reutilizar en la vista
+     */
     class MyViewHolder extends RecyclerView.ViewHolder {
         TextView text1;
 
@@ -144,4 +190,16 @@ class MyAdapter extends RecyclerView.Adapter<MyAdapter.MyViewHolder> {
         }
     }
 
+}
+
+/**
+ * Interfaz que define al objeto manajador del evento click en algun elemento de la lista
+ */
+interface OnAudioSelectedListener {
+    void audioSelected (Uri item);
+}
+
+class AudioModel {
+    long id;
+    String name;
 }
