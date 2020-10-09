@@ -3,21 +3,29 @@ package mx.uv.fiee.iinf.mp3player;
 import android.Manifest;
 import android.app.Activity;
 import android.app.ListActivity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.ListAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import java.util.LinkedList;
 
 public class MainActivity extends Activity {
     public static final int REQUEST_CODE = 1001;
@@ -29,38 +37,40 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         // origen de datos
-        String [] days = { "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes" };
+        String [] days = { "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", };
 
         // controlador
         ArrayAdapter<String> adapter = new ArrayAdapter<> (getBaseContext(), android.R.layout.simple_list_item_2, days);
 
+        // recupera los archivos de audio
+        LinkedList<String> l = loadAudios ();
+
         // vista
         RecyclerView lv = findViewById (R.id.list1);
-        lv.setAdapter (new MyAdapter ());
+        lv.setLayoutManager (new LinearLayoutManager (getBaseContext(), RecyclerView.VERTICAL, false));
+        lv.setAdapter (new MyAdapter (getBaseContext(), days));
+    }
 
-//        findViewById(R.id.btnItem).setOnClickListener (v -> {
-//            Intent intent = new Intent (getBaseContext (), DetailsActivity.class);
-//            intent.putExtra ("AUDIO", "/sdcard/Music/01.mp3");
-//            startActivityForResult (intent, ACTIVITY_REQUEST_CODE);
-//
-//
-//            // verifica si se cuenta con el permiso para realizar llamadas
-////            int perm = getBaseContext ().checkSelfPermission (Manifest.permission.CALL_PHONE);
-////            if (perm != PackageManager.PERMISSION_GRANTED) { // sino se tiene el permiso
-////                requestPermissions ( // se solicita explicitamente
-////                        new String [] { Manifest.permission.CALL_PHONE, Manifest.permission.READ_EXTERNAL_STORAGE },
-////                        REQUEST_CODE
-////                );
-////
-////                return;
-////            }
-////
-////            Invoca al marcador telefónico
-////            String uri = "tel: 229 2343435";
-////            Intent intent = new Intent (Intent.ACTION_CALL);
-////            intent.setData (Uri.parse (uri));
-////            startActivity (intent);
-//        });
+    LinkedList<String> loadAudios () {
+        String [] columns = { MediaStore.Audio.Artists.ARTIST, MediaStore.Audio.Media.ALBUM};
+        String order = MediaStore.Audio.Media.DEFAULT_SORT_ORDER;
+
+        // SELECT MediaStore.Audio.Artists.ARTIST, MediaStore.Audio.Media.ALBUM
+        // FROM MediaStore.Audio.Media.EXTERNAL_CONTENT_URI ORDER BY MediaStore.Audio.Media.DEFAULT_SORT_ORDER;
+        Cursor cursor =  getBaseContext().getContentResolver().query (MediaStore.Audio.Media.INTERNAL_CONTENT_URI, columns, null, null, order);
+        if (cursor == null) return null;
+
+        LinkedList<String> artists = new LinkedList<> ();
+
+        for (int i = 0; i < cursor.getCount (); i++) {
+            int index = cursor.getColumnIndex (MediaStore.Audio.Media.ARTIST);
+            String artist = cursor.getString (index);
+
+            artists.add (artist);
+        }
+
+        cursor.close ();
+        return artists;
     }
 
     /**
@@ -98,28 +108,39 @@ public class MainActivity extends Activity {
 }
 
 class MyAdapter extends RecyclerView.Adapter<MyAdapter.MyViewHolder> {
+    Context context;
+    String [] data;
+
+    public MyAdapter (Context context, String [] data) {
+        this.data = data;
+        this.context = context;
+    }
 
     @NonNull
     @Override
     public MyViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        return null;
+        View view = LayoutInflater.from (context).inflate (R.layout.list_item, parent, false);
+        return new MyViewHolder (view);
     }
 
     @Override
     public void onBindViewHolder (@NonNull MyViewHolder holder, int position) {
-
+        String foo = data [position];
+        holder.text1.setText (foo);
     }
 
     @Override
     public int getItemCount () {
-        return 0;
+        return data.length;
     }
 
 
     class MyViewHolder extends RecyclerView.ViewHolder {
+        TextView text1;
 
         public MyViewHolder (@NonNull View itemView) {
             super(itemView);
+            text1 = itemView.findViewById (R.id.tvItem);
         }
     }
 
