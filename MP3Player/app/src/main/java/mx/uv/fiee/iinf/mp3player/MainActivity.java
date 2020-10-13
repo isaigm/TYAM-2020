@@ -60,35 +60,41 @@ public class MainActivity extends Activity {
     }
 
     void loadAudios () {
-        String [] columns = { MediaStore.Audio.Artists._ID, MediaStore.Audio.Artists.ARTIST };
-        String order = MediaStore.Audio.Media.DEFAULT_SORT_ORDER;
+        // información a recuperar
+        String[] columns = {MediaStore.Audio.Media._ID, MediaStore.Audio.Artists.ARTIST, MediaStore.Audio.Media.DISPLAY_NAME};
+        String order = MediaStore.Audio.Media.DEFAULT_SORT_ORDER; // orden
 
         // SELECT MediaStore.Audio.Artists.ARTIST, MediaStore.Audio.Media.ALBUM
         // FROM MediaStore.Audio.Media.EXTERNAL_CONTENT_URI ORDER BY MediaStore.Audio.Media.DEFAULT_SORT_ORDER;
-        Cursor cursor =  getBaseContext().getContentResolver().query (MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, columns, null, null, order);
+        Cursor cursor = getBaseContext().getContentResolver().query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, columns, null, null, order);
         if (cursor == null) return;
 
-        LinkedList<AudioModel> artists = new LinkedList<> ();
+        LinkedList<AudioModel> artists = new LinkedList<>();
 
-        for (int i = 0; i < cursor.getCount (); i++) {
-            cursor.moveToPosition (i);
-            AudioModel audioModel = new AudioModel ();
+        for (int i = 0; i < cursor.getCount(); i++) {
+            cursor.moveToPosition(i);
+            AudioModel audioModel = new AudioModel();
 
-            int index = cursor.getColumnIndexOrThrow (MediaStore.Audio.Media._ID);
-            long id = cursor.getLong (index);
+            int index = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID);
+            long id = cursor.getLong(index);
             audioModel.id = id;
 
-            index = cursor.getColumnIndexOrThrow (MediaStore.Audio.Media.ARTIST);
-            String artist = cursor.getString (index);
+            index = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME);
+            String artist = cursor.getString(index);
             audioModel.name = artist;
 
-            artists.add (audioModel);
+            artists.add(audioModel);
         }
 
-        cursor.close ();
+        cursor.close();
 
-        MyAdapter adapter = new MyAdapter (getBaseContext (), artists);
-        adapter.setOnAudioSelectedListener (audioUri -> Toast.makeText (getBaseContext (), audioUri.toString (), Toast.LENGTH_LONG).show () );
+        MyAdapter adapter = new MyAdapter(getBaseContext(), artists);
+        adapter.setOnAudioSelectedListener (audioUri -> {
+            Intent intent = new Intent (getBaseContext (), DetailsActivity.class);
+            intent.putExtra ("AUDIO", audioUri.toString ());
+            startActivity (intent);
+        });
+
         lv.setAdapter (adapter);
     }
 

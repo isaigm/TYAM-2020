@@ -5,7 +5,8 @@ import android.content.Intent;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
-import android.widget.Button;
+import android.util.Log;
+import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.Toast;
 
@@ -15,10 +16,15 @@ import androidx.annotation.Nullable;
 import java.io.IOException;
 
 public class DetailsActivity extends Activity {
+    private static final String SONG_KEY = "song";
+    private static final String PROGRESS_KEY = "progress";
+    private static final String ISPLAYING_KEY = "isplaying";
+
     MediaPlayer player;
     Thread posThread;
     Uri mediaUri;
     int pos;
+    boolean updateProgressBar;
 
     @Override
     protected void onCreate (@Nullable Bundle savedInstanceState) {
@@ -28,84 +34,65 @@ public class DetailsActivity extends Activity {
         SeekBar sbProgress = findViewById (R.id.sbProgress);
         sbProgress.setOnSeekBarChangeListener (new MySeekBarChangeListener ());
 
-        player = new MediaPlayer ();
-        player.setOnPreparedListener (mediaPlayer -> {
-            posThread = new Thread (() -> {
-                try {
-                    while (player.isPlaying ()) {
+        // hilo adicional para controlar la actualización de la barra de progreso
+        posThread = new Thread (() -> {
+            try {
+                while (true) {
+                    if (updateProgressBar) {
                         Thread.sleep (1000);
                         sbProgress.setProgress (player.getCurrentPosition ());
                     }
-                } catch (InterruptedException in) { in.printStackTrace (); }
-            });
+                }
+            } catch (InterruptedException in) { in.printStackTrace (); }
+        });
 
+        player = new MediaPlayer ();
+
+        // establece el manejador del evento de reproducción finalizada
+        player.setOnCompletionListener (mediaPlayer -> {
+            // operaciones de limpieza cuando termina la reproducción
+            updateProgressBar = false;
+            //if (posThread != null) posThread.interrupt ();
+            sbProgress.setProgress (0);
+        });
+
+        // manejador del evento media player preparado
+        player.setOnPreparedListener (mediaPlayer -> {
             sbProgress.setMax (mediaPlayer.getDuration ());
             if (pos > -1) mediaPlayer.seekTo (pos);
             mediaPlayer.start ();
             posThread.start ();
+            updateProgressBar = true;
         });
 
-        Button btnAudio1 = findViewById (R.id.btnAudio1);
-        btnAudio1.setOnClickListener (v -> {
-
-            if (player.isPlaying ()) {
-                posThread.interrupt ();
-                player.stop ();
-                player.seekTo (0);
-                sbProgress.setProgress (0);
-                pos = -1;
+        // botón play
+        ImageButton btnAudio1 = findViewById (R.id.btnAudio1);
+        btnAudio1.setOnClickListener (view -> {
+            // verifica si el player se encuentra en un estado de pausa
+            if (!player.isLooping () && player.getCurrentPosition () > 1) {
+                player.start ();
+                player.seekTo (pos);
+                updateProgressBar = true;
+                return;
             }
 
-            mediaUri = Uri.parse ("android.resource://" + getBaseContext ().getPackageName () + "/" + R.raw.mr_blue_sky);
-
-            try {
-                player.setDataSource(getBaseContext (), mediaUri);
-                player.prepare ();
-                Toast.makeText (getApplicationContext (), "Now playing: Mr. Blue Sky", Toast.LENGTH_LONG).show ();
-            } catch (IOException ex) { ex.printStackTrace (); }
-
-        });
-
-        Button btnAudio2 = findViewById (R.id.btnAudio2);
-        btnAudio2.setOnClickListener (v -> {
-
-            if (player.isPlaying ()) {
-                posThread.interrupt ();
-                player.stop ();
-                player.seekTo (0);
-                sbProgress.setProgress (0);
-                pos = -1;
-            }
-
-            mediaUri = Uri.parse ("android.resource://" + getBaseContext ().getPackageName () + "/" + R.raw.lake_shore_drive);
-
+            // si es la primera vez que se carga el archivo de audio
+            // se invoca al método de preparación del media player
             try {
                 player.setDataSource (getBaseContext (), mediaUri);
                 player.prepare ();
-                Toast.makeText (getApplicationContext (), "Now playing: Lake Shoe Drive", Toast.LENGTH_LONG).show ();
             } catch (IOException ex) { ex.printStackTrace (); }
 
         });
 
-        Button btnAudio3 = findViewById (R.id.btnAudio3);
-        btnAudio3.setOnClickListener (v -> {
-
+        // botón pausar
+        ImageButton btnAudio2 = findViewById (R.id.btnAudio2);
+        btnAudio2.setOnClickListener (view -> {
             if (player.isPlaying ()) {
-                posThread.interrupt ();
-                player.stop ();
-                player.seekTo (0);
-                sbProgress.setProgress (0);
-                pos = -1;
+                pos = player.getCurrentPosition ();
+                player.pause ();
+                updateProgressBar = false;
             }
-
-            mediaUri = Uri.parse ("android.resource://" + getBaseContext ().getPackageName () + "/" + R.raw.fox_on_the_run);
-
-            try {
-                player.setDataSource (getBaseContext(), mediaUri);
-                player.prepare ();
-                Toast.makeText (getApplicationContext (), "Now playing: Fox On The Run", Toast.LENGTH_LONG).show ();
-            } catch (IOException ex) { ex.printStackTrace (); }
-
         });
 
     }
@@ -114,46 +101,59 @@ public class DetailsActivity extends Activity {
     protected void onSaveInstanceState (@NonNull Bundle outState) {
         super.onSaveInstanceState (outState);
 
-        outState.putString ("SONG", mediaUri != null ? mediaUri.toString (): "");
-        outState.putInt ("PROGRESS", player != null ?  player.getCurrentPosition () : -1);
-        outState.putBoolean ("ISPLAYING", player != null && player.isPlaying ());
+        outState.putString (SONG_KEY, mediaUri != null ? mediaUri.toString (): "");
+        outState.putInt (PROGRESS_KEY, player != null ?  player.getCurrentPosition () : -1);
+        outState.putBoolean (ISPLAYING_KEY, player != null && player.isPlaying ());
+
+        posThread.interrupt ();
 
         if (player.isPlaying ()) {
-            posThread.interrupt ();
-
             player.stop ();
             player.seekTo (0);
-            player.release ();
-            player = null;
         }
+
+        player.release ();
+        player = null;
     }
 
     @Override
     protected void onRestoreInstanceState (@NonNull Bundle savedInstanceState) {
         super.onRestoreInstanceState (savedInstanceState);
 
-        mediaUri = Uri.parse (savedInstanceState.getString ("SONG"));
-        pos = savedInstanceState.getInt ("PROGRESS");
-        boolean isPlaying = savedInstanceState.getBoolean ("ISPLAYING");
+        mediaUri = Uri.parse (savedInstanceState.getString (SONG_KEY));
+        pos = savedInstanceState.getInt (PROGRESS_KEY);
+        boolean isPlaying = savedInstanceState.getBoolean (ISPLAYING_KEY);
+        updateProgressBar = isPlaying;
 
         if (player == null) return;
 
         try {
             player.reset ();
-            player.setDataSource (getBaseContext (), mediaUri);
-            if (isPlaying) player.prepareAsync ();
+
+            if (isPlaying) {
+                player.setDataSource (getBaseContext (), mediaUri);
+                player.prepareAsync();
+            }
         } catch (IOException | IllegalStateException ioex) {
             ioex.printStackTrace ();
         }
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+        if (posThread.isAlive ()) posThread.interrupt ();
+    }
+
+    @Override
     protected void onDestroy () {
         super.onDestroy();
         // cleanup
+        if (player != null) {
+            if (player.isPlaying ()) {
+                player.stop ();
+            }
 
-        if (player != null && player.isPlaying ()) {
-            player.stop ();
             player.release ();
         }
 
@@ -162,27 +162,26 @@ public class DetailsActivity extends Activity {
 
 
     @Override
-    protected void onResume() {
-        super.onResume ();
-    }
-
-    @Override
-    protected void onStart() {
+    protected void onStart () {
         super.onStart ();
 
         Intent intent = getIntent ();
         if (intent != null) {
             String audio = intent.getStringExtra ("AUDIO");
-            Toast.makeText (getBaseContext(), audio, Toast.LENGTH_LONG).show ();
+            mediaUri = Uri.parse (audio);
         }
 
     }
 
+    /**
+     * Clase que implementa a la interfaz OnSeekBarChangeListener para responder
+     * al evento de búsqueda en la barra de progreso
+     */
     class MySeekBarChangeListener implements SeekBar.OnSeekBarChangeListener {
 
         @Override
         public void onProgressChanged (SeekBar seekBar, int i, boolean b) {
-            if (b) {
+            if (b) { // si el evento fue disparado por el usuario, se reposiciona el audio
                 player.pause ();
                 player.seekTo (i);
                 player.start ();
