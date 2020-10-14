@@ -23,6 +23,8 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.squareup.picasso.Picasso;
+
 import java.util.LinkedList;
 import java.util.Objects;
 
@@ -33,6 +35,8 @@ public class MainActivity extends Activity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView (R.layout.activity_main);
+
+
 
         Toolbar toolbar = findViewById (R.id.toolbar);
         setActionBar (Objects.requireNonNull (toolbar));
@@ -62,50 +66,50 @@ public class MainActivity extends Activity {
     }
 
     private void loadImages () {
-//        String [] columns = { MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME };
-//        String order = MediaStore.Images.Media.DEFAULT_SORT_ORDER;
-//
-//        Cursor cursor = getContentResolver ().query (
-//                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-//                columns,
-//                null,
-//                null,
-//                order
-//        );
-//
-//        DatabaseUtils.dumpCursor (cursor);
-//        if (cursor == null) return;
-//
-//        LinkedList<Uri> imageUris = new LinkedList<> ();
-//
-//        cursor.moveToFirst ();
-//        while (cursor.moveToNext ()) {
-//            int index = cursor.getColumnIndexOrThrow (MediaStore.Images.Media._ID);
-//            int id = cursor.getInt (index);
-//
-//
-//            Uri uri = ContentUris.withAppendedId (
-//                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-//                    id
-//            );
-//
-//            imageUris.add (uri);
-//        }
-//
-//        cursor.close ();
+        String [] columns = { MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME };
+        String order = MediaStore.Images.Media.DEFAULT_SORT_ORDER;
 
+        Cursor cursor = getContentResolver ().query (
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                columns,
+                null,
+                null,
+                order
+        );
 
-        Uri u = (new Uri.Builder ())
-                .scheme (ContentResolver.SCHEME_ANDROID_RESOURCE)
-                .authority (getResources().getResourcePackageName (R.drawable.a3_26))
-                .appendPath (getResources().getResourceTypeName (R.drawable.a3_26))
-                .appendPath (getResources().getResourceEntryName (R.drawable.a3_26))
-                .build ();
+        DatabaseUtils.dumpCursor (cursor);
+        if (cursor == null) return;
 
         LinkedList<Uri> imageUris = new LinkedList<> ();
-        for (int i = 0; i < 100; i++) {
-            imageUris.add (u);
+
+        cursor.moveToFirst ();
+        while (cursor.moveToNext ()) {
+            int index = cursor.getColumnIndexOrThrow (MediaStore.Images.Media._ID);
+            int id = cursor.getInt (index);
+
+
+            Uri uri = ContentUris.withAppendedId (
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    id
+            );
+
+            imageUris.add (uri);
         }
+
+        cursor.close ();
+
+
+//        Uri u = (new Uri.Builder ())
+//                .scheme (ContentResolver.SCHEME_ANDROID_RESOURCE)
+//                .authority (getResources().getResourcePackageName (R.drawable.a3_26))
+//                .appendPath (getResources().getResourceTypeName (R.drawable.a3_26))
+//                .appendPath (getResources().getResourceEntryName (R.drawable.a3_26))
+//                .build ();
+//
+//        LinkedList<Uri> imageUris = new LinkedList<> ();
+//        for (int i = 0; i < 100; i++) {
+//            imageUris.add (u);
+//        }
 
         GalleryAdapter adapter = new GalleryAdapter (getBaseContext (), imageUris);
         rv.setAdapter (adapter);

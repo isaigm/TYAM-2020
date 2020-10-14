@@ -10,6 +10,8 @@ import android.widget.ImageView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.squareup.picasso.Picasso;
+
 import java.util.LinkedList;
 
 public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.GalleryItemVH> {
@@ -48,7 +50,7 @@ public class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.GalleryI
         }
 
         void setImage (Uri image) {
-            imageView.setImageURI (image);
+            Picasso.get().load (image).into(imageView);
         }
     }
 }
