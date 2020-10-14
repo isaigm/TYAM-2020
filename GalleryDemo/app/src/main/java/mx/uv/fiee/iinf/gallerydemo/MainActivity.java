@@ -2,6 +2,8 @@ package mx.uv.fiee.iinf.gallerydemo;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -9,6 +11,7 @@ import android.database.Cursor;
 import android.database.DatabaseUtils;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Debug;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Menu;
@@ -47,41 +50,62 @@ public class MainActivity extends Activity {
             return;
         }
 
+        ActivityManager activityManager = (ActivityManager) getSystemService (ACTIVITY_SERVICE);
+        ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo ();
+        activityManager.getMemoryInfo (memoryInfo);
+
+        Log.d ("TYAM", "Memory assigned to app " + activityManager.getMemoryClass ());
+        Log.d ("TYAM", "Total Memory " + (memoryInfo.totalMem / 0x100000L));
+        Log.d ("TYAM", "Percent Available Memory " + (((double) memoryInfo.availMem / (double) memoryInfo.totalMem) * 100.0));
+
         loadImages ();
     }
 
     private void loadImages () {
-        String [] columns = { MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME };
-        String order = MediaStore.Images.Media.DEFAULT_SORT_ORDER;
+//        String [] columns = { MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME };
+//        String order = MediaStore.Images.Media.DEFAULT_SORT_ORDER;
+//
+//        Cursor cursor = getContentResolver ().query (
+//                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+//                columns,
+//                null,
+//                null,
+//                order
+//        );
+//
+//        DatabaseUtils.dumpCursor (cursor);
+//        if (cursor == null) return;
+//
+//        LinkedList<Uri> imageUris = new LinkedList<> ();
+//
+//        cursor.moveToFirst ();
+//        while (cursor.moveToNext ()) {
+//            int index = cursor.getColumnIndexOrThrow (MediaStore.Images.Media._ID);
+//            int id = cursor.getInt (index);
+//
+//
+//            Uri uri = ContentUris.withAppendedId (
+//                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+//                    id
+//            );
+//
+//            imageUris.add (uri);
+//        }
+//
+//        cursor.close ();
 
-        Cursor cursor = getContentResolver ().query (
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                columns,
-                null,
-                null,
-                order
-        );
 
-        DatabaseUtils.dumpCursor (cursor);
-        if (cursor == null) return;
+        Uri u = (new Uri.Builder ())
+                .scheme (ContentResolver.SCHEME_ANDROID_RESOURCE)
+                .authority (getResources().getResourcePackageName (R.drawable.a3_26))
+                .appendPath (getResources().getResourceTypeName (R.drawable.a3_26))
+                .appendPath (getResources().getResourceEntryName (R.drawable.a3_26))
+                .build ();
 
         LinkedList<Uri> imageUris = new LinkedList<> ();
-
-        cursor.moveToFirst ();
-        while (cursor.moveToNext ()) {
-            int index = cursor.getColumnIndexOrThrow (MediaStore.Images.Media._ID);
-            int id = cursor.getInt (index);
-
-
-            Uri uri = ContentUris.withAppendedId (
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    id
-            );
-
-            imageUris.add (uri);
+        for (int i = 0; i < 100; i++) {
+            imageUris.add (u);
         }
-
-        cursor.close ();
 
         GalleryAdapter adapter = new GalleryAdapter (getBaseContext (), imageUris);
         rv.setAdapter (adapter);
@@ -110,7 +134,7 @@ public class MainActivity extends Activity {
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         switch (item.getItemId ()) {
             case R.id.mnuSaveActivity:
-                Intent intent = new Intent(this, SavingActivity.class);
+                Intent intent = new Intent (this, SavingActivity.class);
                 startActivity (intent);
                 break;
         }
