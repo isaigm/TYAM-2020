@@ -1,8 +1,11 @@
 package mx.uv.fiee.iinf.gallerydemo;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
@@ -14,7 +17,9 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.io.File;
@@ -24,35 +29,56 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 public class SavingActivity extends Activity {
+    public static final int REQUEST_CAMERA_OPEN = 4001;
+    public static final int REQUEST_PERMISSION_CAMERA = 3001;
+    ImageView iv;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView (R.layout.activity_saving);
 
-        ImageView iv = findViewById (R.id.ivSource);
+        iv = findViewById (R.id.ivSource);
+
 
         Button button = findViewById (R.id.btnSave);
         button.setOnClickListener (v -> {
 
-            Bitmap bitmap = getBitmapFromDrawable (iv.getDrawable ());
+            int perm = checkSelfPermission (Manifest.permission.CAMERA);
+            if (perm != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions (
+                        new String [] { Manifest.permission.CAMERA },
+                        REQUEST_PERMISSION_CAMERA
+                );
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                saveImage (bitmap);
-            } else {
-                String imageDir = Environment.getExternalStoragePublicDirectory (Environment.DIRECTORY_PICTURES).toString ();
-                File file = new File(imageDir, "/mypic.jpg");
-
-                try {
-                    OutputStream fos = new FileOutputStream (file);
-                    bitmap.compress (Bitmap.CompressFormat.JPEG, 100, fos);
-                    fos.close ();
-                } catch (IOException ex) {
-                    ex.printStackTrace ();
-                }
+                return;
             }
 
+            abrirCamara ();
+
+//            Bitmap bitmap = getBitmapFromDrawable (iv.getDrawable ());
+//
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+//                saveImage (bitmap);
+//            } else {
+//                String imageDir = Environment.getExternalStoragePublicDirectory (Environment.DIRECTORY_PICTURES).toString ();
+//                File file = new File(imageDir, "/mypic.jpg");
+//
+//                try {
+//                    OutputStream fos = new FileOutputStream (file);
+//                    bitmap.compress (Bitmap.CompressFormat.JPEG, 100, fos);
+//                    fos.close ();
+//                } catch (IOException ex) {
+//                    ex.printStackTrace ();
+//                }
+//            }
+
         });
+    }
+
+    void abrirCamara () {
+        Intent intent = new Intent (MediaStore.ACTION_IMAGE_CAPTURE);
+        startActivityForResult (intent, REQUEST_CAMERA_OPEN);
     }
 
     /**
@@ -97,4 +123,25 @@ public class SavingActivity extends Activity {
         } catch (Exception ex) { ex.printStackTrace (); }
     }
 
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == REQUEST_PERMISSION_CAMERA) {
+            if (grantResults.length > 0 && grantResults [0] == PackageManager.PERMISSION_GRANTED) {
+                abrirCamara ();
+            }
+        }
+    }
+
+    @Override
+    protected void onActivityResult (int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQUEST_CAMERA_OPEN && resultCode == RESULT_OK) {
+            Bitmap bitmap = (Bitmap) data.getExtras().get("data");
+            iv.setImageBitmap (bitmap);
+        }
+    }
 }
