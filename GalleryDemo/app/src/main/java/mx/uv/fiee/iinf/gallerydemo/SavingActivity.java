@@ -27,6 +27,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Locale;
 
 public class SavingActivity extends Activity {
     public static final int REQUEST_CAMERA_OPEN = 4001;
@@ -54,24 +55,24 @@ public class SavingActivity extends Activity {
                 return;
             }
 
-            abrirCamara ();
+            //abrirCamara ();
 
-//            Bitmap bitmap = getBitmapFromDrawable (iv.getDrawable ());
-//
-//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//                saveImage (bitmap);
-//            } else {
-//                String imageDir = Environment.getExternalStoragePublicDirectory (Environment.DIRECTORY_PICTURES).toString ();
-//                File file = new File(imageDir, "/mypic.jpg");
-//
-//                try {
-//                    OutputStream fos = new FileOutputStream (file);
-//                    bitmap.compress (Bitmap.CompressFormat.JPEG, 100, fos);
-//                    fos.close ();
-//                } catch (IOException ex) {
-//                    ex.printStackTrace ();
-//                }
-//            }
+            Bitmap bitmap = getBitmapFromDrawable (iv.getDrawable ());
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                saveImage (bitmap);
+            } else {
+                String imageDir = Environment.getExternalStoragePublicDirectory (Environment.DIRECTORY_PICTURES).toString ();
+                File file = new File(imageDir, "/mypic.jpg");
+
+                try {
+                    OutputStream fos = new FileOutputStream (file);
+                    bitmap.compress (Bitmap.CompressFormat.JPEG, 100, fos);
+                    fos.close ();
+                } catch (IOException ex) {
+                    ex.printStackTrace ();
+                }
+            }
 
         });
     }
@@ -107,19 +108,48 @@ public class SavingActivity extends Activity {
         return bitmap;
     }
 
+    /**
+     * Almacena el mapa de bits recibido en el almacenamiento externo, dentro de la carpeta destinada
+     * para contener archivos de imagen.
+     *
+     * @param bitmap imagen en mapa de bits a guardar.
+     */
     void saveImage (Bitmap bitmap) {
         ContentResolver resolver = getContentResolver ();
 
         ContentValues values = new ContentValues ();
         values.put (MediaStore.MediaColumns.DISPLAY_NAME, "myOtherPic.jpg");
-        values.put (MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
 
-        Uri imageUri = resolver.insert (MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            values.put (MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
+            values.put (MediaStore.MediaColumns.IS_PENDING, true);
+        } else {
+            String pictureDirectory =
+                    String.format ("%s/%s", Environment.getExternalStorageDirectory (), Environment.DIRECTORY_PICTURES);
+            values.put (MediaStore.MediaColumns.DATA, pictureDirectory);
+        }
+
+        Uri targetUri;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            targetUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+        } else {
+            targetUri = MediaStore.Files.getContentUri ("external");
+        }
+
+        Uri imageUri =  resolver.insert (targetUri, values);
 
         try {
             OutputStream fos = resolver.openOutputStream (imageUri);
             bitmap.compress (Bitmap.CompressFormat.JPEG,100, fos);
+            fos.flush ();
             fos.close ();
+
+            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                values = new ContentValues ();
+                values.put (MediaStore.Images.ImageColumns.IS_PENDING, false);
+                resolver.update (imageUri, values, null, null);
+            }
         } catch (Exception ex) { ex.printStackTrace (); }
     }
 
