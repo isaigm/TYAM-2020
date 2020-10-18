@@ -37,32 +37,29 @@ public class SavingActivity extends Activity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView (R.layout.activity_saving);
-
-        iv = findViewById (R.id.ivSource);
-
-
-        Button button = findViewById (R.id.btnSave);
-        button.setOnClickListener (v -> {
-
+        setContentView(R.layout.activity_saving);
+        iv = findViewById(R.id.ivSource);
+        Button openCamera = findViewById(R.id.takePhoto);
+        openCamera.setOnClickListener(v -> {
             int perm = checkSelfPermission (Manifest.permission.CAMERA);
             if (perm != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions (
-                        new String [] { Manifest.permission.CAMERA },
-                        REQUEST_PERMISSION_CAMERA
-                );
+                requestPermissions(new String [] { Manifest.permission.CAMERA }, REQUEST_PERMISSION_CAMERA);
+            }else abrirCamara();
+        });
 
-                return;
-            }
-
-            //abrirCamara ();
+        Button save = findViewById(R.id.btnSave);
+        save.setOnClickListener (v -> {
 
             Bitmap bitmap = getBitmapFromDrawable (iv.getDrawable ());
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 saveImage (bitmap);
+                System.out.println("save");
             } else {
-                String imageDir = Environment.getExternalStoragePublicDirectory (Environment.DIRECTORY_PICTURES).toString ();
+                System.out.println("other save");
+                String imageDir = Environment.getExternalStoragePublicDirectory(
+                        Environment.DIRECTORY_DCIM).toString() + File.separator + "Camera";
+                System.out.println(imageDir);
                 File file = new File(imageDir, "/mypic.jpg");
 
                 try {

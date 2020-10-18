@@ -7,10 +7,10 @@
 
     <Toolbar
         android:id="@+id/toolbar"
-        android:titleTextColor="#fff"
-        android:background="@color/colorPrimary"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize" />
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/colorPrimary"
+        android:titleTextColor="#fff" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvGallery"
