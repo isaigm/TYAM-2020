@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.DatabaseUtils;
+import android.graphics.MaskFilter;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Debug;
@@ -27,27 +28,30 @@ import java.util.Objects;
 
 public class MainActivity extends Activity {
     RecyclerView rv;
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d("EVENT", "onResume");
+        int perm = checkSelfPermission (Manifest.permission.READ_EXTERNAL_STORAGE);
+        if(perm == PackageManager.PERMISSION_GRANTED){
+            loadImages();
+        }
+    }
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView (R.layout.activity_main);
-
-
-
         Toolbar toolbar = findViewById (R.id.toolbar);
         setActionBar (Objects.requireNonNull (toolbar));
-
         rv = findViewById (R.id.rvGallery);
         rv.setLayoutManager (new GridLayoutManager (getBaseContext (), 2));
-
         int perm = checkSelfPermission (Manifest.permission.READ_EXTERNAL_STORAGE);
         if (perm != PackageManager.PERMISSION_GRANTED) {
             requestPermissions (
-                    new String [] { Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE },
+                    new String [] { Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE},
                     1001
             );
-
             return;
         }
 
@@ -59,7 +63,7 @@ public class MainActivity extends Activity {
         Log.d ("TYAM", "Total Memory " + (memoryInfo.totalMem / 0x100000L));
         Log.d ("TYAM", "Percent Available Memory " + (((double) memoryInfo.availMem / (double) memoryInfo.totalMem) * 100.0));
 
-        loadImages ();
+        loadImages();
     }
 
     private void loadImages () {
@@ -133,11 +137,9 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        switch (item.getItemId ()) {
-            case R.id.mnuSaveActivity:
-                Intent intent = new Intent (this, SavingActivity.class);
-                startActivity (intent);
-                break;
+        if (item.getItemId() == R.id.mnuSaveActivity) {
+            Intent intent = new Intent(this, SavingActivity.class);
+            startActivity(intent);
         }
 
         return super.onOptionsItemSelected (item);

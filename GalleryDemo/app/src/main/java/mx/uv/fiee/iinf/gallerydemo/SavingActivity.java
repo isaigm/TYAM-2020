@@ -1,15 +1,21 @@
 package mx.uv.fiee.iinf.gallerydemo;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -17,60 +23,98 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Locale;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class SavingActivity extends Activity {
     public static final int REQUEST_CAMERA_OPEN = 4001;
     public static final int REQUEST_PERMISSION_CAMERA = 3001;
+    public static final int REQUEST_GPS = 5001;
     ImageView iv;
+    Button save;
+    Button openCamera;
+    private double latitude = 0;
+    private double longitude = 0;
+    private double altitude = 0;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_saving);
+        int perms = checkSelfPermission (Manifest.permission.ACCESS_FINE_LOCATION);
+        if(perms != PackageManager.PERMISSION_GRANTED){
+            requestPermissions(new String []{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_GPS);
+        }
+
         iv = findViewById(R.id.ivSource);
-        Button openCamera = findViewById(R.id.takePhoto);
+        openCamera = findViewById(R.id.takePhoto);
         openCamera.setOnClickListener(v -> {
             int perm = checkSelfPermission (Manifest.permission.CAMERA);
             if (perm != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String [] { Manifest.permission.CAMERA }, REQUEST_PERMISSION_CAMERA);
             }else abrirCamara();
+            save.setEnabled(true);
         });
 
-        Button save = findViewById(R.id.btnSave);
+        save = findViewById(R.id.btnSave);
         save.setOnClickListener (v -> {
+            // Acquire a reference to the system Location Manager
+            LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
 
-            Bitmap bitmap = getBitmapFromDrawable (iv.getDrawable ());
+            // Define a listener that responds to location updates
+            LocationListener locationListener = new LocationListener() {
+                public void onLocationChanged(Location location) {
+                    // Called when a new location is found by the network location provider.
+                    altitude = location.getAltitude();
+                    longitude = location.getLongitude();
+                    latitude = location.getLatitude();
+                    System.out.printf("%f %f %f\n", altitude, longitude, latitude);
+                }
+
+                public void onStatusChanged(String provider, int status, Bundle extras) {}
+
+                public void onProviderEnabled(String provider) {}
+
+                public void onProviderDisabled(String provider) {}
+            };
+
+            // Register the listener with the Location Manager to receive location updates
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
+            save.setEnabled(false);
+            Bitmap bitmap = getBitmapFromDrawable(iv.getDrawable());
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                saveImage (bitmap);
-                System.out.println("save");
+                saveImage(bitmap);
             } else {
-                System.out.println("other save");
                 String imageDir = Environment.getExternalStoragePublicDirectory(
                         Environment.DIRECTORY_DCIM).toString() + File.separator + "Camera";
                 System.out.println(imageDir);
-                File file = new File(imageDir, "/mypic.jpg");
-
+                @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+                String imageFileName = "/JPEG" + timeStamp + "_";
+                File file = new File(imageDir, imageFileName + ".jpeg");
                 try {
-                    OutputStream fos = new FileOutputStream (file);
-                    bitmap.compress (Bitmap.CompressFormat.JPEG, 100, fos);
-                    fos.close ();
+                    OutputStream fos = new FileOutputStream(file);
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                    fos.close();
+                    ExifInterface exifInterface = new ExifInterface(file.getPath());
+                    exifInterface.setAttribute(ExifInterface.TAG_GPS_LATITUDE, String.valueOf(latitude));
+                    exifInterface.setAttribute(ExifInterface.TAG_GPS_ALTITUDE, String.valueOf(altitude));
+                    exifInterface.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, String.valueOf(longitude));
+                    exifInterface.saveAttributes();
+                    Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+                    Uri contentUri = Uri.fromFile(file);
+                    mediaScanIntent.setData(contentUri);
+                    this.sendBroadcast(mediaScanIntent);
                 } catch (IOException ex) {
                     ex.printStackTrace ();
                 }
             }
-
         });
     }
 
